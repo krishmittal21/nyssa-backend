@@ -207,10 +207,30 @@ Authorization: Bearer {idToken}
 - Set up Cloud Monitoring alerts for critical errors
 - Use Firebase Crashlytics for client-side error reporting
 
-## Contributing
+## Architecture Diagram
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+The following diagram illustrates the complete GCP workflow of the Nyssa Backend architecture:
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```mermaid
+graph TD
+    Client[Client] -->|Requests| APIGateway[API Gateway]
+    
+    subgraph "GCP Services"
+        APIGateway -->|Routes requests| CloudRun[Cloud Run Services]
+        CloudRun -->|Processes requests| CF_NyassaChat[Cloud Function: cf-nyassachat]
+        CloudRun -->|Image generation requests| CF_GeminiImageGen[Cloud Function: cf-geminiimagegenerator]
+        
+        CF_NyassaChat -->|Uses| Langchain[Langchain]
+        Langchain -->|Processes data| CF_NyassaChat
+        
+        CF_NyassaChat -->|Creates| NotificationDoc[Firestore: Notification Document]
+        CF_GeminiImageGen -->|Creates| NotificationDoc
+        
+        NotificationDoc -->|Triggers| EventArc[Eventarc]
+        EventArc -->|Invokes| NotificationTrigger[Notification Trigger]
+        NotificationTrigger -->|Sends| FCM[Firebase Cloud Messaging]
+        FCM -->|Delivers| Notification[User Notification]
+    end
+    
+    Notification -->|Received by| Client
+```
